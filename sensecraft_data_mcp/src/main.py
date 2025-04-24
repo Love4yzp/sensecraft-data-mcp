@@ -45,7 +45,7 @@ from dotenv import load_dotenv, dotenv_values
 from typing import List, Dict
 
 
-if __name__ == "__main__":
+def main():
     from mcp_tools import paas_client
     from mcp_tools import code_reader
 
