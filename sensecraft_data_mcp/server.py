@@ -1,8 +1,8 @@
 from mcp.server.fastmcp import FastMCP
 import os
 import logging
-from dotenv import load_dotenv
 from dotenv import dotenv_values
+from dotenv import load_dotenv
 
 def load_env_by_priority():
     print(logging.getLogger().handlers)
@@ -42,12 +42,11 @@ mcp = FastMCP("sensecraft_data_mcp_server")
 
 import os
 from dotenv import load_dotenv, dotenv_values
-from typing import List, Dict
 
 
 def main():
     from mcp_tools import paas_client
-    from mcp_tools import code_reader
+    from mcp_tools import (code_reader)
 
     logger.info("sensecraft_data_mcp_server starting.....")
     paas_client.add_tools(mcp)
