@@ -35,7 +35,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'sensecraft-data-mcp=sensecraft_data_mcp.src.main',
+            'sensecraft-data-mcp=sensecraft_data_mcp.src.main:main',
         ],
     },
 )
