@@ -12,29 +12,37 @@ let logger = getLogger("codeReader")
 const RESOURCES_CONFIG = [
     {
         name: "sensecraft_http_measurement_send",
-        uri: "file:///static/arduino/sensecraft_http_measurement_send.cpp",
-        description: "生成向sensecraft data(sensecap paas)平台发送传感器测量结果的代码,接收参数为StaticJsonDocument",
+        uri: "file:///static/arduino/sensecraft_http_measurement_send.h",
+        description: "生成向sensecraft data(sensecap paas)平台发送传感器测量结果的代码,接收参数为JsonDocument.必须保存在和main.cpp同级目录.",
         replaceHost: true
     },
     {
         name: "tem_hum_collect",
-        uri: "file:///static/arduino/tem_hum_collect.cpp",
-        description: "获取当前环境的温湿度代码, 以StaticJsonDocument格式返回",
+        uri: "file:///static/arduino/tem_hum_collect.h",
+        description: "获取当前环境的温湿度代码, 以JsonDocument格式返回.目前并没有打算通过引脚获取数据,仅是一个返回固定测量值的函数,用来验证数据上传功能正常.必须保存在和main.cpp同级目录.",
         replaceHost: false
     },
     {
         name: "config",
         uri: "file:///static/arduino/config.h",
-        description: "全局统一配置文件,请把需要在项目里使用的配置添加到config.h中, 需要使用时根据保存路径导入config.h即可.建议保存在项目根目录下.",
+        description: "项目初始化后的全局统一配置文件,请把需要在项目里使用的配置添加到config.h中, 需要使用时根据保存路径导入config.h即可.必须保存在和main.cpp同级目录.",
         replaceHost: false
     },
     {
         name: "main",
         uri: "file:///static/arduino/main.cpp",
-        description: "项目运行的主函数,即程序运行的起点.通过修改这个文件可以修改启动时的配置与运行期间的功能.建议保存在项目根目录下.",
+        description: "arduino 项目运行的主函数,也是程序运行的起点.通过修改这个文件可以修改启动时的配置与运行期间的功能.使用 platformio 开发的项目,这个函数文件必须保存在项目下的 src 文件夹下.",
+        replaceHost: false
+    },
+    {
+        name: "led_blink",
+        uri: "file:///static/arduino/led_blink.h",
+        description: "控制 led 闪烁的函数, 接受的参数为 int 类型的次数, 用来控制闪烁几次.需要保存在和main.cpp同级目录.必须保存在和main.cpp同级目录.",
         replaceHost: false
     }
 ]
+
+logger.info(JSON.stringify(RESOURCES_CONFIG))
 
 export class CodeReader implements McpRegister{
 
@@ -89,7 +97,6 @@ export class CodeReader implements McpRegister{
                         }
                     }
                     logger.info(`read_code_file for uri:${uri}`)
-
                     for (let fileItem of RESOURCES_CONFIG) {
                         if (fileItem.uri !== uri) {
                             continue
@@ -140,11 +147,5 @@ export class CodeReader implements McpRegister{
         return fs.readFileSync(path.join(this.rootPath, file_path)).toString()
     }
 
-}
-
-class ReadResult {
-    fileContent?: string
-    description?: string
-    error?: string
 }
 

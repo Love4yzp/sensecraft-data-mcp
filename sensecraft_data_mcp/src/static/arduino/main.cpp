@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 
-#include "config.h" // 配置文件，包含WiFi信息和SenseCAP PAAS信息
+#include "config.h" // 配置文件，包含WiFi信息和SenseCraft data平台的信息
 
 // 上传数据的时间间隔（毫秒）
 const unsigned long UPLOAD_INTERVAL = 60000; // 1分钟
@@ -10,15 +10,15 @@ unsigned long lastUploadTime = 0;
 // 项目的初始化的内容
 void setup() {
   Serial.begin(115200);
-  delay(1000);
+  delay(3000);
   Serial.println("Starting...");
 
   // 连接WiFi
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Serial.print("Connecting to WiFi");
   while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
+    delay(1000);
+    Serial.print("WiFi is connecting.\n");
   }
   Serial.println();
   Serial.println("WiFi connected");
@@ -35,7 +35,7 @@ void loop() {
     lastUploadTime = currentTime;
 
     // 输出日志的操作, 完成重要步骤后必须输出日志记录
-    Serial.println("Failed to collect valid sensor data");
+    Serial.println("loop...");
 
     // 请在此调用你需要的函数, 请注意,如果需要,就在文件最上方添加导入的文件声明
 
