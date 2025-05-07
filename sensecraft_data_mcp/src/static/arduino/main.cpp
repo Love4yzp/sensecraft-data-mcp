@@ -37,6 +37,11 @@ void loop() {
     // 输出日志的操作, 完成重要步骤后必须输出日志记录
     Serial.println("loop...");
 
+    long rssi = WiFi.RSSI();
+    Serial.print("RSSI: ");
+    Serial.print(rssi);
+    Serial.println(" dBm");
+
     // 请在此调用你需要的函数, 请注意,如果需要,就在文件最上方添加导入的文件声明
 
   }

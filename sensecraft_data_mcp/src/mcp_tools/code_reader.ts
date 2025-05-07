@@ -13,7 +13,13 @@ const RESOURCES_CONFIG = [
     {
         name: "sensecraft_http_measurement_send",
         uri: "file:///static/arduino/sensecraft_http_measurement_send.h",
-        description: "生成向sensecraft data(sensecap paas)平台发送传感器测量结果的代码,接收参数为JsonDocument.必须保存在和main.cpp同级目录.",
+        description: "生成向sensecraft data平台发送传感器测量结果的代码,接收参数为JsonDocument.必须保存在和main.cpp同级目录.",
+        replaceHost: true
+    },
+    {
+        name: "sensecraft_http_device_status_send",
+        uri: "file:///static/arduino/sensecraft_http_device_status_send.h",
+        description: "生成向sensecraft data平台发送设备实时状态(如电量,信号强度等)的代码,接收参数为JsonDocument.必须保存在和main.cpp同级目录.",
         replaceHost: true
     },
     {
