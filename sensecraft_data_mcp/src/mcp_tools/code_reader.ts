@@ -13,7 +13,7 @@ const RESOURCES_CONFIG = [
     {
         name: "sensecraft_http_measurement_send",
         uri: "file:///static/arduino/sensecraft_http_measurement_send.h",
-        description: "生成向sensecraft data平台发送传感器测量结果的代码,接收参数为JsonDocument.必须保存在和main.cpp同级目录.",
+        description: "向sensecraft data发送传感器测量结果的代码,接收参数为JsonDocument, 返回值true 表示数据发送成功, false 表示数据发送失败.",
         replaceHost: true
     },
     {
@@ -25,7 +25,7 @@ const RESOURCES_CONFIG = [
     {
         name: "tem_hum_collect",
         uri: "file:///static/arduino/tem_hum_collect.h",
-        description: "获取当前环境的温湿度代码, 以JsonDocument格式返回.目前并没有打算通过引脚获取数据,仅是一个返回固定测量值的函数,用来验证数据上传功能正常.必须保存在和main.cpp同级目录.",
+        description: "获取当前环境的温湿度代码, 以JsonDocument格式返回.目前并没有打算通过引脚获取数据,仅是一个返回固定测量值的函数,用来验证数据上传功能正常.必须保存在和main.cpp同级目录. 此部分有涉及DHT设备读取的代码, 请在 platformIO 的配置文件platformio.ini中, 添加依赖:dfrobot/DFRobot_DHT20@^1.0.0",
         replaceHost: false
     },
     {

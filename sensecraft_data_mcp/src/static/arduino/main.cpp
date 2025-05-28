@@ -7,7 +7,7 @@
 const unsigned long UPLOAD_INTERVAL = 60000; // 1分钟
 unsigned long lastUploadTime = 0;
 
-// 项目的初始化的内容
+// 项目的初始化的内容, 比如设备的初始化
 void setup() {
   Serial.begin(115200);
   delay(3000);
