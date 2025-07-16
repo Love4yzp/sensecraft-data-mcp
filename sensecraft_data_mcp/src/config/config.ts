@@ -4,7 +4,7 @@ import path from 'path'
 
 
 
-const SENSECRAFT_SITE_ENV = process.env.SENSECRAFT_SITE_ENV ?? "develop"
+const SENSECRAFT_SITE_ENV = process.env.SENSECRAFT_SITE_ENV ?? "global"
 const setting = dotenv.config({ path: path.join(__dirname, '.env') }).parsed;
 const envSetting = dotenv.config({ path: path.join(__dirname, `.env.${SENSECRAFT_SITE_ENV}`) }).parsed;
 

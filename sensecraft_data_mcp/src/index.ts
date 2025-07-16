@@ -17,7 +17,7 @@ main().catch((error) => {
 async function main() {
     const server = new McpServer({
         name: "sensecraft_data_mcp",
-        version: "0.1.0"
+        version: "0.4.0"
     });
     logger.info('sensecraft_data_mcp is starting...')
     let passClient = new PaasClient()
