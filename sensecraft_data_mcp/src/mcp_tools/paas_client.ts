@@ -3,6 +3,8 @@ import {getLogger} from '../logger'
 import axios, { AxiosResponse } from 'axios';
 import {McpRegister, ToolItem} from './mcp_register'
 import {z} from 'zod'
+import {wrapTell, wrapAsk, wrapFail, summarizeTelemetryPayload, ToolCallResult} from './response'
+import {rememberDevice, resolveDeviceRef, DeviceCandidate} from './device_registry'
 
 let logger = getLogger("paasClient")
 const HOST_NAME = setting!!['SENSECRAFT_DATA_SERVER_URL']
@@ -31,6 +33,28 @@ class JsonResponse {
     data?: any
 }
 
+/**
+ * Resolves a user-supplied device reference (a spoken device name OR a literal EUI)
+ * down to a concrete EUI, or produces the appropriate ask/fail response when it can't.
+ */
+function resolveDeviceOrRespond(rawInput: string): {ok: true, eui: string, label: string} | {ok: false, result: ToolCallResult} {
+    const resolution = resolveDeviceRef(rawInput)
+    if (resolution.confident && resolution.eui) {
+        return {ok: true, eui: resolution.eui, label: resolution.matchedName ?? rawInput}
+    }
+    if (resolution.candidates.length > 0) {
+        const names = resolution.candidates.map((c: DeviceCandidate) => c.deviceName).join('、')
+        return {
+            ok: false,
+            result: wrapAsk(`没有找到明确匹配"${rawInput}"的设备，候选有：${names}。请明确是哪一个，或直接提供设备EUI。`, {candidates: resolution.candidates})
+        }
+    }
+    return {
+        ok: false,
+        result: wrapFail(`没有找到名为"${rawInput}"的设备，请提供设备EUI，或先用register_device注册该设备。`)
+    }
+}
+
 export class PaasClient implements McpRegister {
     tools(): ToolItem[] {
         let result: ToolItem[] = [];
@@ -40,7 +64,7 @@ export class PaasClient implements McpRegister {
             paramsSchema: {
                 deviceName: z.string()
             },
-            item: async (param) => {
+            item: async (param): Promise<ToolCallResult> => {
                 let deviceName = param.deviceName
                 logger.debug(`register_device for deviceName: ${deviceName} .....`)
                 let url = '/openapi/device/create_development_kit'
@@ -50,170 +74,95 @@ export class PaasClient implements McpRegister {
                         let data = result.data
                         if (data && data.eui) {
                             logger.info(`register_device(eui:${data.eui}) successfully`)
-                            return {
-                                content: [
-                                    {
-                                        "type": "text",
-                                        "text": JSON.stringify({
-                                            eui: data.eui
-                                        })
-                                    }
-                                ]
-                            }
+                            rememberDevice(deviceName, data.eui)
+                            return wrapTell(`设备"${deviceName}"注册成功，EUI为${data.eui}。`, {deviceName, eui: data.eui}, true)
                         }
                     }
                     if (FAULT[result.code]) {
-                        return {
-                            content: [
-                                {
-                                    "type": "text",
-                                    "text": `注册失败, 原因:${FAULT[result.code]}`
-                                }
-                            ]
-                        }
+                        return wrapFail(`注册失败，原因：${FAULT[result.code]}`, {code: result.code})
                     }
                     logger.info(`register_device error, response: ${result.data}`)
-                    return {
-                        content: [
-                            {
-                                "type": "text",
-                                "text": "注册失败, 请稍后重试"
-                            }
-                        ]
-                    }
+                    return wrapFail("注册失败，请稍后重试")
                 } catch (e) {
                     logger.error(`register_device encounter error: ${e}`)
-                    return {
-                        content: [
-                            {
-                                "type": "text",
-                                "text": "注册失败, 请稍后重试"
-                            }
-                        ]
-                    }
+                    return wrapFail("注册失败，请稍后重试")
                 }
             }
         })
         result.push({
             name: "get_device_key",
-            description: "根据sensecraft data(sensecap paas)平台的eui获取设备的device_key和token",
+            description: "根据sensecraft data(sensecap paas)平台的设备名称或eui获取设备的device_key和token",
             paramsSchema: {
                 nodeEui: z.string()
             },
-            item: async (param) => {
-                let nodeEui = param.nodeEui
-                logger.debug(`get_device_key for nodeEui: ${nodeEui} .....`)
+            item: async (param): Promise<ToolCallResult> => {
+                let nodeEuiInput = param.nodeEui
+                logger.debug(`get_device_key for nodeEui: ${nodeEuiInput} .....`)
+
+                const resolved = resolveDeviceOrRespond(nodeEuiInput)
+                if (resolved.ok === false) return resolved.result
+                let nodeEui = resolved.eui
+
                 let url = '/openapi/device/view_node_key'
                 try {
                     let result = await this._doHttp<JsonResponse>("get", url, {"node_eui": nodeEui})
                     if (result.code === '0') {
-                        return {
-                            content: [
-                                {
-                                    "type": "text",
-                                    "text": JSON.stringify(result.data)
-                                }
-                            ]
-                        }
+                        return wrapTell(`已获取到设备"${resolved.label}"的密钥信息。`, result.data)
                     }
                     if (FAULT[result.code]) {
-                        return {
-                            content: [
-                                {
-                                    "type": "text",
-                                    "text": `查询deviceKey失败, 原因:${FAULT[result.code]}`
-                                }
-                            ]
-                        }
+                        return wrapFail(`查询deviceKey失败，原因：${FAULT[result.code]}`, {code: result.code})
                     }
                     logger.info(`get_device_key error, response: ${result.data}`)
-                    return {
-                        content: [
-                            {
-                                "type": "text",
-                                "text": "查询deviceKey失败, 请稍后重试"
-                            }
-                        ]
-                    }
+                    return wrapFail("查询deviceKey失败，请稍后重试")
                 } catch (e) {
                     logger.error(`get_device_key encounter error: ${e}`)
-                    return {
-                        content: [
-                            {
-                                "type": "text",
-                                "text": "查询deviceKey失败, 请稍后重试"
-                            }
-                        ]
-                    }
+                    return wrapFail("查询deviceKey失败，请稍后重试")
                 }
             }
         })
         result.push({
             name: "view_latest_telemetry_data",
-            description: "根据sensecraft data(sensecap paas)平台的device_eui、channel_index、measurement_id获取最新遥测数据." +
+            description: "根据sensecraft data(sensecap paas)平台的设备名称或device_eui、channel_index、measurement_id获取最新遥测数据." +
                 "返回该设备一年内最新的遥测数据,如果没指定channel_index则返回设备每个通道下最新的数据点。",
             paramsSchema: {
                 device_eui: z.string(),
                 channel_index: z.number().optional(),
                 measurement_id: z.number().optional()
             },
-            item: async (param) => {
-                let device_eui = param.device_eui
+            item: async (param): Promise<ToolCallResult> => {
+                let device_eui_input = param.device_eui
                 let channel_index = param.channel_index
                 let measurement_id = param.measurement_id
-                logger.debug(`view_latest_telemetry_data for deviceEui-channelIndex-measurementId: ${device_eui}-${channel_index}-${measurement_id} .....`)
+                logger.debug(`view_latest_telemetry_data for deviceEui-channelIndex-measurementId: ${device_eui_input}-${channel_index}-${measurement_id} .....`)
+
+                const resolved = resolveDeviceOrRespond(device_eui_input)
+                if (resolved.ok === false) return resolved.result
+
                 let url = '/openapi/view_latest_telemetry_data'
                 try {
                     let result = await this._doHttp<JsonResponse>("get", url, {
-                        "device_eui": device_eui,
+                        "device_eui": resolved.eui,
                         "channel_index": channel_index,
                         "measurement_id": measurement_id
                     })
                     if (result.code === '0') {
-                        return {
-                            content: [
-                                {
-                                    "type": "text",
-                                    "text": JSON.stringify(result.data)
-                                }
-                            ]
-                        }
+                        const {say, data} = summarizeTelemetryPayload(result.data)
+                        return wrapTell(`设备"${resolved.label}"：${say}`, data)
                     }
                     if (FAULT[result.code]) {
-                        return {
-                            content: [
-                                {
-                                    "type": "text",
-                                    "text": `获取最新遥测数据失败, 原因:${FAULT[result.code]}`
-                                }
-                            ]
-                        }
+                        return wrapFail(`获取最新遥测数据失败，原因：${FAULT[result.code]}`, {code: result.code})
                     }
-                    logger.info(`get_device_key error, response: ${result.data}`)
-                    return {
-                        content: [
-                            {
-                                "type": "text",
-                                "text": "获取最新遥测数据失败, 请稍后重试"
-                            }
-                        ]
-                    }
+                    logger.info(`view_latest_telemetry_data error, response: ${result.data}`)
+                    return wrapFail("获取最新遥测数据失败，请稍后重试")
                 } catch (e) {
-                    logger.error(`get_device_key encounter error: ${e}`)
-                    return {
-                        content: [
-                            {
-                                "type": "text",
-                                "text": "获取最新遥测数据失败, 请稍后重试"
-                            }
-                        ]
-                    }
+                    logger.error(`view_latest_telemetry_data encounter error: ${e}`)
+                    return wrapFail("获取最新遥测数据失败，请稍后重试")
                 }
             }
         })
         result.push({
             name: "list_telemetry_data",
-            description: "根据sensecraft data(sensecap paas)平台的device_eui、channel_index、measurement_id获取指定设备的历史遥测数据" +
+            description: "根据sensecraft data(sensecap paas)平台的设备名称或device_eui、channel_index、measurement_id获取指定设备的历史遥测数据" +
                 "最长返回一个月的数据 只能查询最近三个月内的数据(通过time_start/time_end控制查询范围), limit 控制返回的数据条数",
             paramsSchema: {
                 device_eui: z.string(),
@@ -223,56 +172,33 @@ export class PaasClient implements McpRegister {
                 time_start: z.number().optional(),
                 time_end: z.number().optional()
             },
-            item: async (param) => {
+            item: async (param): Promise<ToolCallResult> => {
                 logger.debug(`list_telemetry_data for param: ${JSON.stringify(param)} .....`)
+
+                const resolved = resolveDeviceOrRespond(param.device_eui)
+                if (resolved.ok === false) return resolved.result
+
                 let url = '/openapi/view_latest_telemetry_data'
                 try {
-                    let result = await this._doHttp<JsonResponse>("get", url, param)
+                    let result = await this._doHttp<JsonResponse>("get", url, {...param, device_eui: resolved.eui})
                     if (result.code === '0') {
-                        return {
-                            content: [
-                                {
-                                    "type": "text",
-                                    "text": JSON.stringify(result.data)
-                                }
-                            ]
-                        }
+                        const {say, data} = summarizeTelemetryPayload(result.data)
+                        return wrapTell(`设备"${resolved.label}"：${say}`, data)
                     }
                     if (FAULT[result.code]) {
-                        return {
-                            content: [
-                                {
-                                    "type": "text",
-                                    "text": `获取指定设备的历史遥测数据失败, 原因:${FAULT[result.code]}`
-                                }
-                            ]
-                        }
+                        return wrapFail(`获取指定设备的历史遥测数据失败，原因：${FAULT[result.code]}`, {code: result.code})
                     }
-                    logger.info(`get_device_key error, response: ${result.data}`)
-                    return {
-                        content: [
-                            {
-                                "type": "text",
-                                "text": "获取指定设备的历史遥测数据失败, 请稍后重试"
-                            }
-                        ]
-                    }
+                    logger.info(`list_telemetry_data error, response: ${result.data}`)
+                    return wrapFail("获取指定设备的历史遥测数据失败，请稍后重试")
                 } catch (e) {
-                    logger.error(`get_device_key encounter error: ${e}`)
-                    return {
-                        content: [
-                            {
-                                "type": "text",
-                                "text": "获取指定设备的历史遥测数据失败, 请稍后重试"
-                            }
-                        ]
-                    }
+                    logger.error(`list_telemetry_data encounter error: ${e}`)
+                    return wrapFail("获取指定设备的历史遥测数据失败，请稍后重试")
                 }
             }
         })
         result.push({
             name: "aggregate_chart_points",
-            description: "根据sensecraft data(sensecap paas)平台的device_eui、channel_index、measurement_id获取设备遥测数据折线图" +
+            description: "根据sensecraft data(sensecap paas)平台的设备名称或device_eui、channel_index、measurement_id获取设备遥测数据折线图" +
                 "将庞大的数据段分成小数据段，然后输出每个小段的平均值，最长返回一年的数据，每个测量量最多返回250个点，超过250个点将自动重新划分时间段返回250个点.",
             paramsSchema: {
                 device_eui: z.string(),
@@ -282,50 +208,27 @@ export class PaasClient implements McpRegister {
                 time_start: z.number().optional(),
                 time_end: z.number().optional()
             },
-            item: async (param) => {
+            item: async (param): Promise<ToolCallResult> => {
                 logger.debug(`aggregate_chart_points for param: ${JSON.stringify(param)} .....`)
+
+                const resolved = resolveDeviceOrRespond(param.device_eui)
+                if (resolved.ok === false) return resolved.result
+
                 let url = '/openapi/aggregate_chart_points'
                 try {
-                    let result = await this._doHttp<JsonResponse>("get", url, param)
+                    let result = await this._doHttp<JsonResponse>("get", url, {...param, device_eui: resolved.eui})
                     if (result.code === '0') {
-                        return {
-                            content: [
-                                {
-                                    "type": "text",
-                                    "text": JSON.stringify(result.data)
-                                }
-                            ]
-                        }
+                        const {say, data} = summarizeTelemetryPayload(result.data)
+                        return wrapTell(`设备"${resolved.label}"：${say}`, data)
                     }
                     if (FAULT[result.code]) {
-                        return {
-                            content: [
-                                {
-                                    "type": "text",
-                                    "text": `获取设备遥测数据折线图失败, 原因:${FAULT[result.code]}`
-                                }
-                            ]
-                        }
+                        return wrapFail(`获取设备遥测数据折线图失败，原因：${FAULT[result.code]}`, {code: result.code})
                     }
-                    logger.info(`get_device_key error, response: ${result.data}`)
-                    return {
-                        content: [
-                            {
-                                "type": "text",
-                                "text": "获取设备遥测数据折线图失败, 请稍后重试"
-                            }
-                        ]
-                    }
+                    logger.info(`aggregate_chart_points error, response: ${result.data}`)
+                    return wrapFail("获取设备遥测数据折线图失败，请稍后重试")
                 } catch (e) {
-                    logger.error(`get_device_key encounter error: ${e}`)
-                    return {
-                        content: [
-                            {
-                                "type": "text",
-                                "text": "获取设备遥测数据折线图失败, 请稍后重试"
-                            }
-                        ]
-                    }
+                    logger.error(`aggregate_chart_points encounter error: ${e}`)
+                    return wrapFail("获取设备遥测数据折线图失败，请稍后重试")
                 }
             }
         })
