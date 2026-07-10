@@ -4,7 +4,7 @@ import axios, { AxiosResponse } from 'axios';
 import {McpRegister, ToolItem} from './mcp_register'
 import {z} from 'zod'
 import {wrapTell, wrapAsk, wrapFail, summarizeTelemetryPayload, ToolCallResult} from './response'
-import {rememberDevice, resolveDeviceRef, DeviceCandidate} from './device_registry'
+import {resolveDeviceRef, DeviceInfo} from './device_resolver'
 
 let logger = getLogger("paasClient")
 const HOST_NAME = setting!!['SENSECRAFT_DATA_SERVER_URL']
@@ -33,26 +33,15 @@ class JsonResponse {
     data?: any
 }
 
-/**
- * Resolves a user-supplied device reference (a spoken device name OR a literal EUI)
- * down to a concrete EUI, or produces the appropriate ask/fail response when it can't.
- */
-function resolveDeviceOrRespond(rawInput: string): {ok: true, eui: string, label: string} | {ok: false, result: ToolCallResult} {
-    const resolution = resolveDeviceRef(rawInput)
-    if (resolution.confident && resolution.eui) {
-        return {ok: true, eui: resolution.eui, label: resolution.matchedName ?? rawInput}
-    }
-    if (resolution.candidates.length > 0) {
-        const names = resolution.candidates.map((c: DeviceCandidate) => c.deviceName).join('、')
-        return {
-            ok: false,
-            result: wrapAsk(`没有找到明确匹配"${rawInput}"的设备，候选有：${names}。请明确是哪一个，或直接提供设备EUI。`, {candidates: resolution.candidates})
-        }
-    }
-    return {
-        ok: false,
-        result: wrapFail(`没有找到名为"${rawInput}"的设备，请提供设备EUI，或先用register_device注册该设备。`)
-    }
+interface DeviceRunningStatus {
+    device_eui: string
+    latest_message_time: string
+    online_status: number
+    battery_status: number
+    battery_digit: number
+    expired_time: string
+    be_quota: number | string
+    report_frequency: number
 }
 
 export class PaasClient implements McpRegister {
@@ -74,7 +63,6 @@ export class PaasClient implements McpRegister {
                         let data = result.data
                         if (data && data.eui) {
                             logger.info(`register_device(eui:${data.eui}) successfully`)
-                            rememberDevice(deviceName, data.eui)
                             return wrapTell(`设备"${deviceName}"注册成功，EUI为${data.eui}。`, {deviceName, eui: data.eui}, true)
                         }
                     }
@@ -99,7 +87,7 @@ export class PaasClient implements McpRegister {
                 let nodeEuiInput = param.nodeEui
                 logger.debug(`get_device_key for nodeEui: ${nodeEuiInput} .....`)
 
-                const resolved = resolveDeviceOrRespond(nodeEuiInput)
+                const resolved = await this._resolveDeviceOrRespond(nodeEuiInput)
                 if (resolved.ok === false) return resolved.result
                 let nodeEui = resolved.eui
 
@@ -135,7 +123,7 @@ export class PaasClient implements McpRegister {
                 let measurement_id = param.measurement_id
                 logger.debug(`view_latest_telemetry_data for deviceEui-channelIndex-measurementId: ${device_eui_input}-${channel_index}-${measurement_id} .....`)
 
-                const resolved = resolveDeviceOrRespond(device_eui_input)
+                const resolved = await this._resolveDeviceOrRespond(device_eui_input)
                 if (resolved.ok === false) return resolved.result
 
                 let url = '/openapi/view_latest_telemetry_data'
@@ -175,7 +163,7 @@ export class PaasClient implements McpRegister {
             item: async (param): Promise<ToolCallResult> => {
                 logger.debug(`list_telemetry_data for param: ${JSON.stringify(param)} .....`)
 
-                const resolved = resolveDeviceOrRespond(param.device_eui)
+                const resolved = await this._resolveDeviceOrRespond(param.device_eui)
                 if (resolved.ok === false) return resolved.result
 
                 let url = '/openapi/view_latest_telemetry_data'
@@ -211,7 +199,7 @@ export class PaasClient implements McpRegister {
             item: async (param): Promise<ToolCallResult> => {
                 logger.debug(`aggregate_chart_points for param: ${JSON.stringify(param)} .....`)
 
-                const resolved = resolveDeviceOrRespond(param.device_eui)
+                const resolved = await this._resolveDeviceOrRespond(param.device_eui)
                 if (resolved.ok === false) return resolved.result
 
                 let url = '/openapi/aggregate_chart_points'
@@ -261,6 +249,45 @@ export class PaasClient implements McpRegister {
                 throw new Error(`HTTP Error: ${error.message}`);
             }
             throw error;
+        }
+    }
+
+    private async _listDevices(): Promise<DeviceInfo[]> {
+        const result = await this._doHttp<JsonResponse>("get", "/openapi/list_devices")
+        if (result.code !== '0' || !Array.isArray(result.data)) {
+            return []
+        }
+        return (result.data as Array<{device_eui: string, device_name: string}>).map((d) => ({
+            deviceName: d.device_name,
+            eui: d.device_eui
+        }))
+    }
+
+    private async _viewDeviceStatus(euis: string[]): Promise<DeviceRunningStatus[]> {
+        if (euis.length === 0) return []
+        const result = await this._doHttp<JsonResponse>("post", "/openapi/view_device_running_status", {device_euis: euis})
+        if (result.code !== '0' || !Array.isArray(result.data)) {
+            return []
+        }
+        return result.data as DeviceRunningStatus[]
+    }
+
+    private async _resolveDeviceOrRespond(rawInput: string): Promise<{ok: true, eui: string, label: string} | {ok: false, result: ToolCallResult}> {
+        const devices = await this._listDevices()
+        const resolution = resolveDeviceRef(rawInput, devices)
+        if (resolution.confident && resolution.eui) {
+            return {ok: true, eui: resolution.eui, label: resolution.matchedName ?? rawInput}
+        }
+        if (resolution.candidates.length > 0) {
+            const names = resolution.candidates.map((c) => c.deviceName).join('、')
+            return {
+                ok: false,
+                result: wrapAsk(`没有找到明确匹配"${rawInput}"的设备，候选有：${names}。请明确是哪一个，或直接提供设备EUI。`, {candidates: resolution.candidates})
+            }
+        }
+        return {
+            ok: false,
+            result: wrapFail(`没有找到名为"${rawInput}"的设备，请提供设备EUI，或先用register_device注册该设备。`)
         }
     }
 
