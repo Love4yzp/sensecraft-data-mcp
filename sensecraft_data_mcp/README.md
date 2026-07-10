@@ -17,6 +17,7 @@ npm run build
 | --- | --- | --- |
 | `ACCESS_ID` / `ACCESS_KEY` | 是 | SenseCAP PaaS 开放平台的 API 凭据 |
 | `SENSECRAFT_SITE_ENV` | 否 | `global`（默认，sensecap.seeed.cc）、`china`（国内站，sensecap.seeed.cn）或 `develop`（内部测试） |
+| `SENSECRAFT_TIMEZONE` | 否 | 播报设备上报时间时使用的 IANA 时区（如 `Asia/Shanghai`）。`china` 站点默认已设为 `Asia/Shanghai`；其余站点不设置时会用 UTC 并明确标注，不会瞎猜时区 |
 | `MCP_ENDPOINT` | 否 | 设置后以 WebSocket 客户端出站连接该地址（例如小智 ESP32 的 MCP 接入点），不设置则走 stdio |
 
 ## 用法一：stdio（Claude Desktop / Cursor 等）

@@ -6,6 +6,7 @@ import {z} from 'zod'
 import {wrapTell, wrapAsk, wrapFail, summarizeTelemetryPayload, ToolCallResult} from './response'
 import {resolveDeviceRef, DeviceInfo} from './device_resolver'
 import {formatMeasurement} from './measurement_catalog'
+import {toLocalTimeString} from './time_util'
 
 let logger = getLogger("paasClient")
 const HOST_NAME = setting!!['SENSECRAFT_DATA_SERVER_URL']
@@ -283,7 +284,11 @@ export class PaasClient implements McpRegister {
                     } else {
                         say += '全部在线正常。'
                     }
-                    return wrapTell(say, {devices, statuses})
+                    const displayStatuses = statuses.map((s) => ({
+                        ...s,
+                        latest_message_time: toLocalTimeString(s.latest_message_time)
+                    }))
+                    return wrapTell(say, {devices, statuses: displayStatuses})
                 } catch (e) {
                     logger.error(`get_farm_overview encounter error: ${e}`)
                     return wrapFail(`获取设备总览失败：${describeError(e)}`)
@@ -332,7 +337,10 @@ export class PaasClient implements McpRegister {
                     if (status) {
                         say += `电量${status.battery_digit}%，${status.online_status === 1 ? '在线' : '离线'}。`
                     }
-                    return wrapTell(say, {readings, status})
+                    const displayStatus = status
+                        ? {...status, latest_message_time: toLocalTimeString(status.latest_message_time)}
+                        : status
+                    return wrapTell(say, {readings, status: displayStatus})
                 } catch (e) {
                     logger.error(`get_device_reading encounter error: ${e}`)
                     return wrapFail(`查询设备读数失败：${describeError(e)}`)
