@@ -220,6 +220,63 @@ export class PaasClient implements McpRegister {
                 }
             }
         })
+        result.push({
+            name: "get_farm_overview",
+            description: "查询账号下所有设备的总览：有几台设备、谁在线谁离线、电量情况、最后一次上报是什么时候。异常设备（离线、低电量、长时间未上报）会被优先播报，健康设备只汇总数量，不逐一念出。",
+            paramsSchema: {},
+            item: async (): Promise<ToolCallResult> => {
+                logger.debug("get_farm_overview...")
+                try {
+                    const devices = await this._listDevices()
+                    if (devices.length === 0) {
+                        return wrapTell("你的账号下还没有绑定任何设备。")
+                    }
+
+                    const statuses = await this._viewDeviceStatus(devices.map((d) => d.eui))
+                    const statusByEui = new Map(statuses.map((s) => [s.device_eui, s]))
+
+                    const now = Date.now()
+                    const problems: string[] = []
+                    let healthyCount = 0
+
+                    for (const device of devices) {
+                        const status = statusByEui.get(device.eui)
+                        if (!status) {
+                            continue
+                        }
+                        const lastReportMs = new Date(status.latest_message_time).getTime()
+                        const minutesSinceReport = (now - lastReportMs) / 60000
+                        const isOffline = status.online_status === 0
+                        const isLowBattery = status.battery_digit < 30
+                        const isStale = status.report_frequency > 0 && minutesSinceReport > status.report_frequency * 2
+
+                        if (isOffline || isLowBattery || isStale) {
+                            const reasons: string[] = []
+                            if (isOffline) reasons.push("离线")
+                            if (isStale && !isOffline) reasons.push(`已经${Math.round(minutesSinceReport)}分钟没有新数据了`)
+                            if (isLowBattery) reasons.push(`电量还剩${status.battery_digit}%`)
+                            problems.push(`${device.deviceName}：${reasons.join('，')}`)
+                        } else {
+                            healthyCount++
+                        }
+                    }
+
+                    let say = `你一共有${devices.length}台设备。`
+                    if (problems.length > 0) {
+                        say += problems.join('；') + '。'
+                        if (healthyCount > 0) {
+                            say += `其余${healthyCount}台设备在线正常。`
+                        }
+                    } else {
+                        say += '全部在线正常。'
+                    }
+                    return wrapTell(say, {devices, statuses})
+                } catch (e) {
+                    logger.error(`get_farm_overview encounter error: ${e}`)
+                    return wrapFail(`获取设备总览失败：${e instanceof Error ? e.message : String(e)}`)
+                }
+            }
+        })
         return result;
     }
 
