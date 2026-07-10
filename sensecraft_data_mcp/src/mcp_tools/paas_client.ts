@@ -87,12 +87,12 @@ export class PaasClient implements McpRegister {
                 let nodeEuiInput = param.nodeEui
                 logger.debug(`get_device_key for nodeEui: ${nodeEuiInput} .....`)
 
-                const resolved = await this._resolveDeviceOrRespond(nodeEuiInput)
-                if (resolved.ok === false) return resolved.result
-                let nodeEui = resolved.eui
-
                 let url = '/openapi/device/view_node_key'
                 try {
+                    const resolved = await this._resolveDeviceOrRespond(nodeEuiInput)
+                    if (resolved.ok === false) return resolved.result
+                    let nodeEui = resolved.eui
+
                     let result = await this._doHttp<JsonResponse>("get", url, {"node_eui": nodeEui})
                     if (result.code === '0') {
                         return wrapTell(`已获取到设备"${resolved.label}"的密钥信息。`, result.data)
@@ -123,11 +123,11 @@ export class PaasClient implements McpRegister {
                 let measurement_id = param.measurement_id
                 logger.debug(`view_latest_telemetry_data for deviceEui-channelIndex-measurementId: ${device_eui_input}-${channel_index}-${measurement_id} .....`)
 
-                const resolved = await this._resolveDeviceOrRespond(device_eui_input)
-                if (resolved.ok === false) return resolved.result
-
                 let url = '/openapi/view_latest_telemetry_data'
                 try {
+                    const resolved = await this._resolveDeviceOrRespond(device_eui_input)
+                    if (resolved.ok === false) return resolved.result
+
                     let result = await this._doHttp<JsonResponse>("get", url, {
                         "device_eui": resolved.eui,
                         "channel_index": channel_index,
@@ -163,11 +163,11 @@ export class PaasClient implements McpRegister {
             item: async (param): Promise<ToolCallResult> => {
                 logger.debug(`list_telemetry_data for param: ${JSON.stringify(param)} .....`)
 
-                const resolved = await this._resolveDeviceOrRespond(param.device_eui)
-                if (resolved.ok === false) return resolved.result
-
                 let url = '/openapi/view_latest_telemetry_data'
                 try {
+                    const resolved = await this._resolveDeviceOrRespond(param.device_eui)
+                    if (resolved.ok === false) return resolved.result
+
                     let result = await this._doHttp<JsonResponse>("get", url, {...param, device_eui: resolved.eui})
                     if (result.code === '0') {
                         const {say, data} = summarizeTelemetryPayload(result.data)
@@ -199,11 +199,11 @@ export class PaasClient implements McpRegister {
             item: async (param): Promise<ToolCallResult> => {
                 logger.debug(`aggregate_chart_points for param: ${JSON.stringify(param)} .....`)
 
-                const resolved = await this._resolveDeviceOrRespond(param.device_eui)
-                if (resolved.ok === false) return resolved.result
-
                 let url = '/openapi/aggregate_chart_points'
                 try {
+                    const resolved = await this._resolveDeviceOrRespond(param.device_eui)
+                    if (resolved.ok === false) return resolved.result
+
                     let result = await this._doHttp<JsonResponse>("get", url, {...param, device_eui: resolved.eui})
                     if (result.code === '0') {
                         const {say, data} = summarizeTelemetryPayload(result.data)
