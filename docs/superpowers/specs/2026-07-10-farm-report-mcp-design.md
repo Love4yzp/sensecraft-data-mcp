@@ -23,6 +23,13 @@
 - 不做任意时间范围的历史数据查询（原型讨论中提出过，但决定收窄为下述 `get_device_trend` 的封闭档位方案，理由见下文"设计取舍"）。
 - 不改动 `sensecraft-solutions` 里的部署配置（`solution.yaml`/`devices/mcp_bridge.yaml`/`docker-compose.yml`），这是后续实现计划的一部分，不在本次设计范围内。
 
+## 本轮实现范围（Phase 1，快速交付）
+
+聚焦小智语音终端这一个消费者，先落地能直接改善语音体验的部分，其余按依赖强弱推迟：
+
+- **本轮做**：`get_farm_overview`、`get_device_reading`、`measurement_catalog.ts`、设备解析从本地缓存改为实时查 `/list_devices`、错误提示从 `FAULT` 表还原具体原因。这些都直接在现有 `sensecraft_data_mcp` 包内实现，不新建包。
+- **本轮不做，推迟到 Phase 2**：`get_device_trend`（原设计中已标注为二期）；`sensecraft_device_provision_mcp` 包拆分——`register_device`/`get_device_key`/`list_all_code`/`read_code_file` 这轮先保持原样留在 `sensecraft_data_mcp` 里不动，暂不影响小智语音终端这条主线，等 Phase 1 稳定后再拆包，避免这一轮因为搬文件、拆 Dockerfile、改 `sensecraft-solutions` 配置而拖慢交付。
+
 ## 消费者与交互模型
 
 目标消费者是小智（XiaoZhi）语音终端，交互特征：
