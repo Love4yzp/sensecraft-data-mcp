@@ -233,6 +233,9 @@ export class PaasClient implements McpRegister {
                     }
 
                     const statuses = await this._viewDeviceStatus(devices.map((d) => d.eui))
+                    if (statuses.length === 0) {
+                        return wrapFail(`你一共有${devices.length}台设备，但暂时获取不到它们的在线状态，请稍后重试。`)
+                    }
                     const statusByEui = new Map(statuses.map((s) => [s.device_eui, s]))
 
                     const now = Date.now()
