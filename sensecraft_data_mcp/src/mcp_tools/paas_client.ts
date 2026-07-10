@@ -28,6 +28,14 @@ const FAULT = {
     "11303": "您的账号下没有此设备"
 }
 
+function describeError(e: unknown): string {
+    const msg = e instanceof Error ? e.message : String(e)
+    if (/ENOTFOUND|ECONNREFUSED|ENETUNREACH|EAI_AGAIN/i.test(msg)) return '网络连接失败'
+    if (/timeout/i.test(msg)) return '请求超时'
+    if (/401|403/.test(msg)) return '身份验证失败'
+    return '未知错误'
+}
+
 class JsonResponse {
     code: string
     message?: string
@@ -74,7 +82,7 @@ export class PaasClient implements McpRegister {
                     return wrapFail("注册失败，请稍后重试")
                 } catch (e) {
                     logger.error(`register_device encounter error: ${e}`)
-                    return wrapFail(`注册失败：${e instanceof Error ? e.message : String(e)}`)
+                    return wrapFail(`注册失败：${describeError(e)}`)
                 }
             }
         })
@@ -105,7 +113,7 @@ export class PaasClient implements McpRegister {
                     return wrapFail("查询deviceKey失败，请稍后重试")
                 } catch (e) {
                     logger.error(`get_device_key encounter error: ${e}`)
-                    return wrapFail(`查询deviceKey失败：${e instanceof Error ? e.message : String(e)}`)
+                    return wrapFail(`查询deviceKey失败：${describeError(e)}`)
                 }
             }
         })
@@ -145,7 +153,7 @@ export class PaasClient implements McpRegister {
                     return wrapFail("获取最新遥测数据失败，请稍后重试")
                 } catch (e) {
                     logger.error(`view_latest_telemetry_data encounter error: ${e}`)
-                    return wrapFail(`获取最新遥测数据失败：${e instanceof Error ? e.message : String(e)}`)
+                    return wrapFail(`获取最新遥测数据失败：${describeError(e)}`)
                 }
             }
         })
@@ -181,7 +189,7 @@ export class PaasClient implements McpRegister {
                     return wrapFail("获取指定设备的历史遥测数据失败，请稍后重试")
                 } catch (e) {
                     logger.error(`list_telemetry_data encounter error: ${e}`)
-                    return wrapFail(`获取指定设备的历史遥测数据失败：${e instanceof Error ? e.message : String(e)}`)
+                    return wrapFail(`获取指定设备的历史遥测数据失败：${describeError(e)}`)
                 }
             }
         })
@@ -217,7 +225,7 @@ export class PaasClient implements McpRegister {
                     return wrapFail("获取设备遥测数据折线图失败，请稍后重试")
                 } catch (e) {
                     logger.error(`aggregate_chart_points encounter error: ${e}`)
-                    return wrapFail(`获取设备遥测数据折线图失败：${e instanceof Error ? e.message : String(e)}`)
+                    return wrapFail(`获取设备遥测数据折线图失败：${describeError(e)}`)
                 }
             }
         })
@@ -246,6 +254,7 @@ export class PaasClient implements McpRegister {
                     for (const device of devices) {
                         const status = statusByEui.get(device.eui)
                         if (!status) {
+                            problems.push(`${device.deviceName}：状态未知`)
                             continue
                         }
                         const lastReportMs = new Date(status.latest_message_time).getTime()
@@ -277,7 +286,7 @@ export class PaasClient implements McpRegister {
                     return wrapTell(say, {devices, statuses})
                 } catch (e) {
                     logger.error(`get_farm_overview encounter error: ${e}`)
-                    return wrapFail(`获取设备总览失败：${e instanceof Error ? e.message : String(e)}`)
+                    return wrapFail(`获取设备总览失败：${describeError(e)}`)
                 }
             }
         })
@@ -326,7 +335,7 @@ export class PaasClient implements McpRegister {
                     return wrapTell(say, {readings, status})
                 } catch (e) {
                     logger.error(`get_device_reading encounter error: ${e}`)
-                    return wrapFail(`查询设备读数失败：${e instanceof Error ? e.message : String(e)}`)
+                    return wrapFail(`查询设备读数失败：${describeError(e)}`)
                 }
             }
         })
