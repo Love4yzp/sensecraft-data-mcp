@@ -71,7 +71,7 @@
 1. `GET /view_latest_telemetry_data`（仅传 `device_eui`，不传 `channel_index`）— 拿该设备全部通道最新读数。
 2. `POST /view_device_running_status`（该设备单个 EUI）— 拿电量与在线状态，与读数一并播报。
 
-**格式化**：新增本地静态映射表 `measurement_catalog.ts`，收录 PaaS 官方文档中的 56 个 `measurement_id → {name, unit}` 对照（覆盖气温、湿度、光照、气压、风速、风向、降雨、土壤温湿度、土壤 EC/pH、PAR、太阳辐射等农业相关测量项），将 `{measurement_id: 4097, value: 26.2}` 这类原始点位翻译为"气温26.2℃"，拼接全部通道后生成一段播报文本。这一步是相对现状价值最大的改动——现有 `summarizeTelemetryPayload` 从不做这个翻译。
+**格式化**：新增本地静态映射表 `measurement_catalog.ts`，收录 PaaS 官方文档中的 53 个 `measurement_id → {name, unit}` 对照（覆盖气温、湿度、光照、气压、风速、风向、降雨、土壤温湿度、土壤 EC/pH、PAR、太阳辐射等农业相关测量项），将 `{measurement_id: 4097, value: 26.2}` 这类原始点位翻译为"气温26.2℃"，拼接全部通道后生成一段播报文本。这一步是相对现状价值最大的改动——现有 `summarizeTelemetryPayload` 从不做这个翻译。
 
 **示例**：
 
@@ -102,7 +102,7 @@
 
 - **响应契约不变**：沿用现有 `response.ts` 的 `wrapTell`/`wrapAsk`/`wrapFail`（`success`/`facts.executed`/`say`/`say_kind`/`data`）结构，新工具直接复用。
 - **设备解析逻辑迁移**：`device_registry.ts` 中的 `similarityScore`/`levenshtein`/`looksLikeEui`/`normalizeText` 等纯函数保留并复用，但去掉 `loadRegistry`/`saveRegistry`/`rememberDevice` 相关的本地文件读写——匹配对象改为每次调用现场从 `/list_devices` 拿到的列表。
-- **新增 `measurement_catalog.ts`**：静态常量表，`measurement_id → {name_zh, unit}`，数据来源为 PaaS 官方 OpenAPI 文档 PDF 中的"List of Measurement IDs"章节（56 条）。
+- **新增 `measurement_catalog.ts`**：静态常量表，`measurement_id → {name_zh, unit}`，数据来源为 PaaS 官方 OpenAPI 文档 PDF 中的"List of Measurement IDs"章节（53 条）。
 
 ## 错误处理
 

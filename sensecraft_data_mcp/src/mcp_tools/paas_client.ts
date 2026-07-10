@@ -386,7 +386,10 @@ export class PaasClient implements McpRegister {
         const devices = await this._listDevices()
         const resolution = resolveDeviceRef(rawInput, devices)
         if (resolution.confident && resolution.eui) {
-            return {ok: true, eui: resolution.eui, label: resolution.matchedName ?? rawInput}
+            const label = resolution.matchedName
+                ?? devices.find((d) => d.eui.toUpperCase() === resolution.eui!.toUpperCase())?.deviceName
+                ?? rawInput
+            return {ok: true, eui: resolution.eui, label}
         }
         if (resolution.candidates.length > 0) {
             const names = resolution.candidates.map((c) => c.deviceName).join('、')
