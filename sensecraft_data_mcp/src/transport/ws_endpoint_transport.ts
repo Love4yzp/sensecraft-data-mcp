@@ -2,6 +2,7 @@ import {getLogger} from '../logger'
 import type {Transport, TransportSendOptions} from '@modelcontextprotocol/sdk/shared/transport.js'
 import type {JSONRPCMessage} from '@modelcontextprotocol/sdk/types.js'
 import {serializeMessage, deserializeMessage} from '@modelcontextprotocol/sdk/shared/stdio.js'
+import WebSocket, {type MessageEvent, type CloseEvent} from 'ws'
 
 const logger = getLogger('wsEndpointTransport')
 

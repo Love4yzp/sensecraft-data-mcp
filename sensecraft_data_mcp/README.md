@@ -16,7 +16,7 @@ npm run build
 | 变量 | 必填 | 说明 |
 | --- | --- | --- |
 | `ACCESS_ID` / `ACCESS_KEY` | 是 | SenseCAP PaaS 开放平台的 API 凭据 |
-| `SENSECRAFT_SITE_ENV` | 否 | `global`（默认）或 `develop` |
+| `SENSECRAFT_SITE_ENV` | 否 | `global`（默认，sensecap.seeed.cc）、`china`（国内站，sensecap.seeed.cn）或 `develop`（内部测试） |
 | `MCP_ENDPOINT` | 否 | 设置后以 WebSocket 客户端出站连接该地址（例如小智 ESP32 的 MCP 接入点），不设置则走 stdio |
 
 ## 用法一：stdio（Claude Desktop / Cursor 等）

@@ -20,6 +20,7 @@
   "devDependencies": {
     "@types/lodash.merge": "^4.6.9",
     "@types/node": "^22.15.2",
+    "@types/ws": "^8.18.1",
     "copyfiles": "^2.4.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
@@ -28,6 +29,7 @@
     "@modelcontextprotocol/sdk": "^1.10.2",
     "axios": "^1.9.0",
     "dotenv": "^16.5.0",
-    "lodash.merge": "^4.6.2"
+    "lodash.merge": "^4.6.2",
+    "ws": "^8.21.0"
   }
 }
