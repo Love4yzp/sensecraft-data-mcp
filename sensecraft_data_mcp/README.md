@@ -54,6 +54,8 @@ node dist/index.js
 
 | Tool | 说明 |
 | --- | --- |
+| `get_farm_overview` | 设备总览：几台设备、谁离线、谁电量低，异常优先播报 |
+| `get_device_reading` | 按设备名称或 EUI 查询某一个设备当前全部通道的读数，格式化成一段可播报文字 |
 | `register_device` | 注册设备并返回 EUI |
 | `get_device_key` | 按设备名称或 EUI 查询 `device_key`/`token` |
 | `view_latest_telemetry_data` | 查询最新遥测数据 |
