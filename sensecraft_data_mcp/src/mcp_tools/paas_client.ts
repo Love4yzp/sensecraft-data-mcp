@@ -73,7 +73,7 @@ export class PaasClient implements McpRegister {
                     return wrapFail("注册失败，请稍后重试")
                 } catch (e) {
                     logger.error(`register_device encounter error: ${e}`)
-                    return wrapFail("注册失败，请稍后重试")
+                    return wrapFail(`注册失败：${e instanceof Error ? e.message : String(e)}`)
                 }
             }
         })
@@ -104,7 +104,7 @@ export class PaasClient implements McpRegister {
                     return wrapFail("查询deviceKey失败，请稍后重试")
                 } catch (e) {
                     logger.error(`get_device_key encounter error: ${e}`)
-                    return wrapFail("查询deviceKey失败，请稍后重试")
+                    return wrapFail(`查询deviceKey失败：${e instanceof Error ? e.message : String(e)}`)
                 }
             }
         })
@@ -144,7 +144,7 @@ export class PaasClient implements McpRegister {
                     return wrapFail("获取最新遥测数据失败，请稍后重试")
                 } catch (e) {
                     logger.error(`view_latest_telemetry_data encounter error: ${e}`)
-                    return wrapFail("获取最新遥测数据失败，请稍后重试")
+                    return wrapFail(`获取最新遥测数据失败：${e instanceof Error ? e.message : String(e)}`)
                 }
             }
         })
@@ -163,7 +163,7 @@ export class PaasClient implements McpRegister {
             item: async (param): Promise<ToolCallResult> => {
                 logger.debug(`list_telemetry_data for param: ${JSON.stringify(param)} .....`)
 
-                let url = '/openapi/view_latest_telemetry_data'
+                let url = '/openapi/list_telemetry_data'
                 try {
                     const resolved = await this._resolveDeviceOrRespond(param.device_eui)
                     if (resolved.ok === false) return resolved.result
@@ -180,7 +180,7 @@ export class PaasClient implements McpRegister {
                     return wrapFail("获取指定设备的历史遥测数据失败，请稍后重试")
                 } catch (e) {
                     logger.error(`list_telemetry_data encounter error: ${e}`)
-                    return wrapFail("获取指定设备的历史遥测数据失败，请稍后重试")
+                    return wrapFail(`获取指定设备的历史遥测数据失败：${e instanceof Error ? e.message : String(e)}`)
                 }
             }
         })
@@ -216,7 +216,7 @@ export class PaasClient implements McpRegister {
                     return wrapFail("获取设备遥测数据折线图失败，请稍后重试")
                 } catch (e) {
                     logger.error(`aggregate_chart_points encounter error: ${e}`)
-                    return wrapFail("获取设备遥测数据折线图失败，请稍后重试")
+                    return wrapFail(`获取设备遥测数据折线图失败：${e instanceof Error ? e.message : String(e)}`)
                 }
             }
         })
