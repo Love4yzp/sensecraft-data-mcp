@@ -5,6 +5,7 @@ import {McpRegister, ToolItem} from './mcp_register'
 import {z} from 'zod'
 import {wrapTell, wrapAsk, wrapFail, summarizeTelemetryPayload, ToolCallResult} from './response'
 import {resolveDeviceRef, DeviceInfo} from './device_resolver'
+import {formatMeasurement} from './measurement_catalog'
 
 let logger = getLogger("paasClient")
 const HOST_NAME = setting!!['SENSECRAFT_DATA_SERVER_URL']
@@ -277,6 +278,55 @@ export class PaasClient implements McpRegister {
                 } catch (e) {
                     logger.error(`get_farm_overview encounter error: ${e}`)
                     return wrapFail(`获取设备总览失败：${e instanceof Error ? e.message : String(e)}`)
+                }
+            }
+        })
+        result.push({
+            name: "get_device_reading",
+            description: "查询某一个设备当前的详细读数（该设备全部通道的最新数据）以及电量、在线状态，返回一段可以直接播报的文字。设备可以用口语化名称或EUI指定。",
+            paramsSchema: {
+                device: z.string()
+            },
+            item: async (param): Promise<ToolCallResult> => {
+                const rawInput = param.device
+                logger.debug(`get_device_reading for device: ${rawInput} .....`)
+                try {
+                    const resolved = await this._resolveDeviceOrRespond(rawInput)
+                    if (resolved.ok === false) return resolved.result
+
+                    const [telemetryResult, statuses] = await Promise.all([
+                        this._doHttp<JsonResponse>("get", "/openapi/view_latest_telemetry_data", {device_eui: resolved.eui}),
+                        this._viewDeviceStatus([resolved.eui])
+                    ])
+
+                    if (telemetryResult.code !== '0') {
+                        if (FAULT[telemetryResult.code]) {
+                            return wrapFail(`查询设备读数失败，原因：${FAULT[telemetryResult.code]}`, {code: telemetryResult.code})
+                        }
+                        return wrapFail("查询设备读数失败，请稍后重试")
+                    }
+
+                    const channels = (telemetryResult.data ?? []) as Array<{channel_index: number, points: Array<{measurement_id: string, measurement_value: number}>}>
+                    const readings: string[] = []
+                    for (const channel of channels) {
+                        for (const point of channel.points) {
+                            readings.push(formatMeasurement(point.measurement_id, point.measurement_value))
+                        }
+                    }
+
+                    if (readings.length === 0) {
+                        return wrapTell(`设备"${resolved.label}"目前还没有遥测数据。`)
+                    }
+
+                    let say = `设备"${resolved.label}"：${readings.join('，')}。`
+                    const status = statuses[0]
+                    if (status) {
+                        say += `电量${status.battery_digit}%，${status.online_status === 1 ? '在线' : '离线'}。`
+                    }
+                    return wrapTell(say, {readings, status})
+                } catch (e) {
+                    logger.error(`get_device_reading encounter error: ${e}`)
+                    return wrapFail(`查询设备读数失败：${e instanceof Error ? e.message : String(e)}`)
                 }
             }
         })
